@@ -5,7 +5,6 @@ library(Seurat)
 library(Matrix)
 library(patchwork)
 library(sctransform)
-library(patchwork)
 library(openxlsx)
 library(DESeq2)
 library(gt)
@@ -371,6 +370,81 @@ cbind(distalvsall, distalvsdistal) %>% repair_names() %>% gt() %>%
   tab_source_note('Yellow highlights markers expressed by a cluster across both comparison tests.')
 # Colored cells. Cyan for overlaps. Yellow for constants. Saved as html file.
 
+# Check adult dataset for expression of ZFP503 (mouse), a potential DCT-specific
+# TF. Human version is ZNF503. Can't seem to find it in the dataset.
+ak_umap <- readRDS('results/ak_umap_wu_2018.rds')
+ak_distal <- readRDS('results/ak_distal.rds')
+VlnPlot(ak_umap, features = 'ZF503') + NoLegend()
 
-
+# Check adult dataset for markers of all distal epithelial cell types.
+ak_labeled <- ak_umap
+new.cluster.ids <- c('PT(0)', 'PT(1)', 'TAL', 'PT(3)', 'TAL', 'DCT', 'CNT', 
+                     'IC-A', 'Principal Cells', 'Podocytes', 'Unknown', 'IC-B', 'Stressed Cells', 'EC/Mesangium (13)', 'Parietal Cells', 
+                     'EC/Mesangium (15)')
+names(new.cluster.ids) <- levels(ak_labeled)
+ak_labeled <- RenameIdents(ak_labeled, new.cluster.ids)
+DimPlot(ak_labeled, reduction = "umap", label = TRUE, pt.size = 0.5)
+# Find markers for all three clusters compared against all others.
+ak_labeled.deseq2.markers.tal_dct_cnt <- 
+  FindMarkers(ak_labeled, ident.1 = c('TAL', 'DCT', 'CNT'), ident.2 = NULL, 
+              only.pos = T, min.pct = 0.25, logfc.threshold = 0.25, 
+              test.use = "DESeq2")
+# Look at the results and save top 20 (ranked by p-value).
+ak_labeled.deseq2.markers.tal_dct_cnt.top20 <- 
+  ak_labeled.deseq2.markers.tal_dct_cnt %>%
+  top_n(n = 20, wt = avg_logFC) %>% rownames_to_column('gene')
+View(ak_labeled.deseq2.markers.tal_dct_cnt.top20)
+# Plot Heatmap of top 20 markers for all three distal epithelial cell types.
+# Saved as pdf.
+DoHeatmap(ak_distal, 
+          features = ak_labeled.deseq2.markers.tal_dct_cnt.top20$gene, 
+          angle = 0, hjust = 0.5, raster = F) + NoLegend()
+# Now do the same, but for DCT and CNT together.
+ak_labeled.deseq2.markers.dct_cnt <- 
+  FindMarkers(ak_labeled, ident.1 = c('DCT', 'CNT'), ident.2 = NULL, 
+              only.pos = T, min.pct = 0.25, logfc.threshold = 0.25, 
+              test.use = "DESeq2")
+# Look at the results and save top 20 (ranked by p-value).
+ak_labeled.deseq2.markers.dct_cnt.top20 <- 
+  ak_labeled.deseq2.markers.dct_cnt %>%
+  top_n(n = 20, wt = avg_logFC) %>% rownames_to_column('gene')
+View(ak_labeled.deseq2.markers.dct_cnt.top20)
+# Plot Heatmap of top 20 markers.
+# Saved as pdf.
+DoHeatmap(ak_distal, 
+          features = ak_labeled.deseq2.markers.dct_cnt.top20$gene, 
+          angle = 0, hjust = 0.5, raster = F) + NoLegend()
+# Now do the same for TAL and DCT together.
+ak_labeled.deseq2.markers.tal_dct <- 
+  FindMarkers(ak_labeled, ident.1 = c('TAL', 'DCT'), ident.2 = NULL, 
+              only.pos = T, min.pct = 0.25, logfc.threshold = 0.25, 
+              test.use = "DESeq2")
+# Look at the results and save top 20 (ranked by p-value).
+ak_labeled.deseq2.markers.tal_dct.top20 <- 
+  ak_labeled.deseq2.markers.tal_dct %>%
+  top_n(n = 20, wt = avg_logFC) %>% rownames_to_column('gene')
+View(ak_labeled.deseq2.markers.tal_dct.top20)
+# Plot Heatmap of top 20 markers.
+# Saved as pdf.
+DoHeatmap(ak_distal, 
+          features = ak_labeled.deseq2.markers.tal_dct.top20$gene, 
+          angle = 0, hjust = 0.5, raster = F) + NoLegend()
+# Now do the same for TAL and CNT together.
+ak_labeled.deseq2.markers.tal_cnt <- 
+  FindMarkers(ak_labeled, ident.1 = c('TAL', 'CNT'), ident.2 = NULL, 
+              only.pos = T, min.pct = 0.25, logfc.threshold = 0.25, 
+              test.use = "DESeq2")
+# Look at the results and save top 20 (ranked by p-value).
+ak_labeled.deseq2.markers.tal_cnt.top20 <- 
+  ak_labeled.deseq2.markers.tal_cnt %>%
+  top_n(n = 20, wt = avg_logFC) %>% rownames_to_column('gene')
+View(ak_labeled.deseq2.markers.tal_cnt.top20)
+# Plot Heatmap of top 20 markers.
+# Saved as pdf.
+DoHeatmap(ak_distal, 
+          features = ak_labeled.deseq2.markers.tal_cnt.top20$gene, 
+          angle = 0, hjust = 0.5, raster = F) + NoLegend()
+# Now have heatmaps comparing TAL-DCT-CNT, TAL-DCT, TAL-CNT, and DCT-CNT to
+# other clusters. Also have heatmaps comparing each distal epithelial cluster on
+# its own to all other clusters and to one another.
 
